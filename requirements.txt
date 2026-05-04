@@ -1,0 +1,5 @@
+PyQt5>=5.15.10,<6
+opencv-python>=4.8.0,<5
+numpy>=1.26,<3
+pyueye>=4.95
+pyinstaller>=6.10

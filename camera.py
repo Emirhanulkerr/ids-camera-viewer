@@ -361,10 +361,11 @@ class CameraWindow(QWidget):
 
         self.setWindowTitle("IDS Camera")
 
-        self.image_label = QLabel()
+        self.image_label = QLabel("Kamera bağlanıyor...")
         self.image_label.setAlignment(Qt.AlignCenter)
         self.image_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.image_label.setMinimumSize(900, 600)
+        self.image_label.setStyleSheet("color: #888; background: #202020;")
 
         self.fps_label = QLabel("FPS: 0")
 
@@ -386,14 +387,28 @@ class CameraWindow(QWidget):
 
         self.camera = None
         self.grabber = None
+        self.timer = None
         self.frame_count = 0
         self._fps_last_query = 0.0
         self._cached_fps = None
         self._dirty = False
 
+        # Kamera baglantisini DOGRUDAN __init__ icinde denemiyoruz cunku
+        # PyInstaller --windowed modunda Qt event loop calismadan
+        # QMessageBox.critical guvenilir sekilde gozukmuyor. Pencereyi
+        # once gosterip, event loop basladiktan sonra QTimer.singleShot
+        # ile bagliyoruz. Boylece hata mesajlari her durumda ekranda
+        # belirir.
+        QTimer.singleShot(50, self._initial_connect)
+
+    def _initial_connect(self):
+        """Pencere gosterildikten ve event loop basladiktan sonra cagrilir.
+        Kameraya baglanir; basarisizsa connect_camera popup'i gosterir
+        ve uygulama duzgun sekilde kapanir."""
         self.connect_camera()
         if self.camera is None:
-            raise RuntimeError("IDS kamerasi bulunamadi")
+            QApplication.instance().quit()
+            return
 
         # UI render timer'i: grab thread frame_ready emit edince _dirty=True
         # yapar, timer 30 Hz'de tek bir render yapar. Boylece grab cok hizli
@@ -578,20 +593,9 @@ if __name__ == "__main__":
         window.resize(1200, 800)
         window.show()
         sys.exit(app.exec_())
-    except RuntimeError as e:
-        # Ic katmanda gosterilmesi gereken uyari herhangi bir nedenle
-        # gorunmediyse, kullanicinin bos ekranla kalmasi yerine son bir
-        # bilgilendirme penceresi gosterelim.
-        logger.error("Uygulama baslatilamadi: %s", e)
-        QMessageBox.critical(
-            None,
-            "Uygulama Başlatılamadı",
-            "Uygulama başlatılamadı.\n\n"
-            "Genelde kamera bağlı değildir veya başka bir program tarafından kullanılıyordur.\n\n"
-            f"Teknik detay: {e}",
-        )
-        sys.exit(1)
     except Exception as e:
+        # Ulasilmaz olmasi gereken bir kosul; yine de kullaniciyi bos
+        # ekranla birakmamak icin son bir uyari gosteriyoruz.
         logger.exception("Beklenmeyen hata")
         QMessageBox.critical(
             None,

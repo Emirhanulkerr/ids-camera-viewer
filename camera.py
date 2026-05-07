@@ -409,8 +409,9 @@ class CameraWindow(QWidget):
         logger.debug("Kamera baglantisi deneniyor")
         if not HAVE_UEYE:
             logger.error("pyueye / IDS SDK yuklu degil: %s", UEYE_IMPORT_ERROR)
+            # parent=None: pencere henuz gorunmeyebilecegi icin top-level dialog kullaniyoruz.
             QMessageBox.critical(
-                self,
+                None,
                 "IDS Driver Eksik",
                 "IDS kamerası kullanılamıyor.\n\n"
                 "Bu programın çalışması için bilgisayarda\n"
@@ -426,7 +427,18 @@ class CameraWindow(QWidget):
             logger.info("Aktif kamera surucusu: IDS")
         except Exception as e:
             logger.warning("IDS kamera baglanamadi: %s", e)
-            QMessageBox.critical(self, "Hata", f"IDS kamerası bulunamadı: {e}")
+            QMessageBox.critical(
+                None,
+                "Kamera Bulunamadı",
+                "Bağlı bir IDS kamera bulunamadı.\n\n"
+                "Lütfen şunları kontrol edin:\n"
+                "  • Kamera bilgisayara bağlı mı? (USB / Ethernet)\n"
+                "  • Kameraya güç geliyor mu?\n"
+                "  • Başka bir uygulama (IDS Camera Manager, uEye Cockpit)\n"
+                "    kamerayı kullanıyor olabilir mi?\n"
+                "  • IDS Camera Manager'da kamera görünüyor mu?\n\n"
+                f"Teknik detay: {e}",
+            )
             self.camera = None
             return
 
@@ -567,5 +579,23 @@ if __name__ == "__main__":
         window.show()
         sys.exit(app.exec_())
     except RuntimeError as e:
+        # Ic katmanda gosterilmesi gereken uyari herhangi bir nedenle
+        # gorunmediyse, kullanicinin bos ekranla kalmasi yerine son bir
+        # bilgilendirme penceresi gosterelim.
         logger.error("Uygulama baslatilamadi: %s", e)
+        QMessageBox.critical(
+            None,
+            "Uygulama Başlatılamadı",
+            "Uygulama başlatılamadı.\n\n"
+            "Genelde kamera bağlı değildir veya başka bir program tarafından kullanılıyordur.\n\n"
+            f"Teknik detay: {e}",
+        )
+        sys.exit(1)
+    except Exception as e:
+        logger.exception("Beklenmeyen hata")
+        QMessageBox.critical(
+            None,
+            "Beklenmeyen Hata",
+            f"Uygulama beklenmeyen bir hata ile karşılaştı:\n\n{e}",
+        )
         sys.exit(1)
